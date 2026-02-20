@@ -1,0 +1,13 @@
+# IntelliJ
+.idea/
+*.iml
+
+# Maven
+target/
+
+# Spring Boot configs
+*/src/main/resources/application.properties
+# OS files
+.DS_Store
+.DS_Store
+Thumbs.db

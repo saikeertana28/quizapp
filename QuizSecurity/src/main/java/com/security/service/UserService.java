@@ -1,5 +1,7 @@
 package com.security.service;
+import com.security.model.PasswordResetOtp;
 import com.security.model.Users;
+import com.security.repository.PasswordResetRepo;
 import com.security.repository.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,6 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.Random;
 
 @Service
 public class UserService {
@@ -22,7 +27,8 @@ public class UserService {
     private MailService mailService;
     @Autowired
     private AuthenticationManager authManager;
-
+@Autowired
+private PasswordResetRepo passwordResetRepo;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
 
     public ResponseEntity<String> register(Users user) {
@@ -46,25 +52,52 @@ public class UserService {
             return "failure";
         }
     }
-    public ResponseEntity<String> forgotPassword( String email) {
-        Users user = repo.findByEmail(email);
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-        }
-
-        String token = jwtservice.generateResetToken(email);
-        mailService.sendResetLink(email, token);
-        return ResponseEntity.ok("Reset password link sent to your email");
+//    public ResponseEntity<String> forgotPassword( String email) {
+//        Users user = repo.findByEmail(email);
+//        if (user == null) {
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+//        }
+//
+//        String token = jwtservice.(email);
+//        mailService.sendResetLink(email, token);
+//        return ResponseEntity.ok("Reset password link sent to your email");
+//    }
+public String generateOtp(String email)
+{
+    Users user=repo.findByEmail(email);
+    if(user==null)
+    {
+        return "User not found with this email";
     }
-    public ResponseEntity<String> resetPassword(String token, String newPassword) {
-        String email = jwtservice.extractUserName(token);
-        Users user = repo.findByEmail(email);
-        if (user == null || jwtservice.isTokenExpired(token)) {
-            return ResponseEntity.badRequest().body("Invalid or expired token.");
+    String otp=String.format("%06d",new Random().nextInt(9999999));
+    LocalDateTime expiry = LocalDateTime.now().plusMinutes(5);
+    PasswordResetOtp otpEntity = new PasswordResetOtp(email, otp, expiry);
+    passwordResetRepo.save(otpEntity);
+    mailService.sendOtp(email, otp);
+    return "OTP sent to email";
+}
+    public boolean verifyOtp(String email, String otp) {
+        Optional<PasswordResetOtp> otpRecord = passwordResetRepo.findByEmailAndOtpAndUsedFalse(email, otp);
+        if (otpRecord.isPresent()) {
+            PasswordResetOtp record = otpRecord.get();
+            if (record.getExpiryTime().isBefore(LocalDateTime.now())) {
+                return false;
+            }
+            record.setUsed(true);
+            passwordResetRepo.save(record);
+            return true;
         }
-        user.setPassword(new BCryptPasswordEncoder().encode(newPassword));
-        repo.save(user);
-        return ResponseEntity.ok("Password reset successfully.");
+        return false;
+    }
+    public String resetPassword(String email, String newPassword) {
+        Users userOpt = repo.findByEmail(email);
+        if (userOpt!=null) {
+            Users user = userOpt;
+            user.setPassword(new BCryptPasswordEncoder().encode(newPassword));
+            repo.save(user);
+            return "Password reset successful";
+        }
+        return "User not found";
     }
     public ResponseEntity<String> updateProfilePicture(String email, MultipartFile file) {
         Users user = repo.findByEmail(email);

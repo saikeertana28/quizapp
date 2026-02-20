@@ -12,7 +12,7 @@ public class Users{
     private String password;
     private String email;
     private String role;
-    @JsonFormat(pattern = "yyyy-MM-dd")
+    @JsonFormat(pattern = "dd-MM-yyyy")
     private LocalDate dob;
     @Lob
     @Column(columnDefinition = "LONGBLOB")

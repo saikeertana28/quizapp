@@ -6,6 +6,9 @@
 target/
 
 # Spring Boot configs
+# Spring Boot configs
+application.properties
+application*.properties
 */src/main/resources/application.properties
 # OS files
 .DS_Store
